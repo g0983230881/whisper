@@ -1,64 +1,46 @@
-# export PATH="/home/g0983230881/miniconda3/envs/whisper-openai/bin:$PATH"
-# source .bashrc
+from datasets import Dataset, Audio, DatasetDict, load_dataset
+import pandas as pd
 
-# from huggingface_hub import notebook_login
-# notebook_login()
-# 在 cmd 輸入 huggingface-cli login 登入 huggingface_hub
-# tokens = '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'
+# 讀取 metadata.csv 並轉換成 dict
+transcriptions_df = pd.read_csv("metadata.csv")
+transcription_dict = pd.Series(transcriptions_df.transcription.values, index=transcriptions_df.file_name).to_dict()
+print(transcription_dict)
 
-# 環境設置
-# pip install --upgrade  pip
-# pip install --upgrade datasets[audio] transformers accelerate evaluate jiwer tensorboard gradio
+# 存取本地音檔資料夾
+dataset_folder = load_dataset("audiofolder", data_dir="wav_folder")
+dataset_folder = dataset_folder["train"].train_test_split(test_size=0.2)
+dataset_folder = dataset_folder.cast_column("audio", Audio(sampling_rate=16000))
+print(dataset_folder["train"])
+print(dataset_folder["test"])
 
-from datasets import load_dataset, DatasetDict
+# 設置 feature_extractor tokenizer processor
+from transformers import WhisperFeatureExtractor,WhisperTokenizer, WhisperProcessor
+feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-base")
+tokenizer = WhisperTokenizer.from_pretrained("openai/whisper-base", language="chinese", task="transcribe")
+processor = WhisperProcessor.from_pretrained("openai/whisper-base", language="chinese", task="transcribe")
 
-common_voice = DatasetDict()
-
-common_voice["train"] = load_dataset("mozilla-foundation/common_voice_11_0", "hsb", split="train",token = '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')
-common_voice["test"] = load_dataset("mozilla-foundation/common_voice_11_0", "hsb", split="test",token = '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')
-
-print(common_voice)
-
-# remove additional metadata information
-common_voice = common_voice.remove_columns(["accent", "age", "client_id", "down_votes", "gender", "locale", "path", "segment", "up_votes"])
-# After this step audio column will have an array variable with 16K rate Audio
-from datasets import Audio
-
-common_voice = common_voice.cast_column("audio", Audio(sampling_rate=16000))
-print(common_voice['train'][0])
-
-
-from transformers import WhisperFeatureExtractor
-feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-tiny")
-
-
-from transformers import WhisperTokenizer
-tokenizer = WhisperTokenizer.from_pretrained("openai/whisper-tiny", language="slovak", task="transcribe")
-
-def prepare_dataset(batch):
-    # load and resample audio data from 48 to 16kHz
-    audio = batch["audio"]
-    # batch["audio_origin"] = audio
-    # compute log-Mel input features from input audio array 
+# 調用 batch["audio"] 加載音頻並轉換成梅爾頻譜, 透過path指定檔案來新增轉錄欄位
+def prepare_data(batch):
+    audio = batch['audio']
+    # print(audio["path"])
+    file_name = audio["path"].split('/')[-1]
+    transcription = transcription_dict.get(file_name, "未找到轉錄")
+    
+    # batch["audio_feature_orgin"] = audio
     batch["input_features"] = feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
-
-    # encode target text to label ids 
-    batch["labels"] = tokenizer(batch["sentence"]).input_ids
+    batch['labels'] = tokenizer(transcription).input_ids
     return batch
 
-common_voice = common_voice.map(prepare_dataset, remove_columns=common_voice.column_names["train"], num_proc=2)
-print(common_voice["train"][0])
-# print(common_voice["train"][0]["audio_origin"]["path"], common_voice["train"][0]['labels'])
-
-from transformers import WhisperProcessor
-processor = WhisperProcessor.from_pretrained("openai/whisper-tiny", language="slovak", task="transcribe")
+dataset_folder = dataset_folder.map(prepare_data, remove_columns=dataset_folder.column_names["train"])
+# for i in range(len(dataset_folder["train"])):
+#     print(dataset_folder["train"][i]["audio_feature_orgin"]["path"], dataset_folder["train"][i]['labels'])
+print(dataset_folder['train'])
 
 
 import torch
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
-# put together a list of samples into a mini training batch, https://www.youtube.com/watch?v=-RPeakdlHYo
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: Any
@@ -109,13 +91,13 @@ def compute_metrics(pred):
 
 
 from transformers import WhisperForConditionalGeneration
-model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny")
+model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-base")
 model.config.forced_decoder_ids = None
 model.config.suppress_tokens = []
 
 from transformers import Seq2SeqTrainingArguments
 training_args = Seq2SeqTrainingArguments(
-    output_dir="./whisper-tiny-output",  # change to a repo name of your choice
+    output_dir="HuangJordan/whisper-base-kipt",  # change to a repo name of your choice
     per_device_train_batch_size=16,
     gradient_accumulation_steps=1,  # increase by 2x for every 2x decrease in batch size
     learning_rate=1e-5,
@@ -141,8 +123,8 @@ from transformers import Seq2SeqTrainer
 trainer = Seq2SeqTrainer(
     args=training_args,
     model=model,
-    train_dataset=common_voice["train"],
-    eval_dataset=common_voice["test"],
+    train_dataset=dataset_folder["train"],
+    eval_dataset=dataset_folder["test"],
     data_collator=data_collator,
     compute_metrics=compute_metrics,
     tokenizer=processor.feature_extractor,
