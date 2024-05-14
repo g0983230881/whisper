@@ -1,4 +1,4 @@
-# whisper檔案格式介紹  
+# whisper檔案介紹  
 ## output/  
 為模型辨識出來的輸出檔案, 預設內含json、srt、tsv、txt、vtt五種格式(檔案)  
 ## PC_FineTuning/  
