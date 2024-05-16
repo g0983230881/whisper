@@ -13,7 +13,7 @@
 完整的訓練程式碼  
 ### metadata.csv 
 當中儲存兩個欄位, file_name、transcription, 給存取本地音檔程式用  
-### upload_wav_dataset.py  
+### train_local_dataset.py  
 存取本地音檔做訓練的完整程式碼  
 ### upload_wav_dataset_to_huggingface.py  
 將本地音檔push到huggingface社群中  
