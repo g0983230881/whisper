@@ -1,4 +1,6 @@
-# whisper檔案介紹  
+## Whisper專案詳細使用方法  
+https://github.com/g0983230881/whisper/tree/main/whisper-main  
+ 
 ## output/  
 為模型辨識出來的輸出檔案, 預設內含json、srt、tsv、txt、vtt五種檔案格式  
 ## PC_FineTuning/  
@@ -19,6 +21,3 @@
 將本地音檔push到huggingface社群中  
 ### use_trained_model_gradio  
 建立gradio網頁使用已訓練好的模型, 推論輸入音檔
-
-## Whisper專案詳細使用方法  
-https://github.com/g0983230881/whisper/tree/main/whisper-main
