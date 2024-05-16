@@ -1,6 +1,6 @@
 # whisper檔案介紹  
 ## output/  
-為模型辨識出來的輸出檔案, 預設內含json、srt、tsv、txt、vtt五種格式(檔案)  
+為模型辨識出來的輸出檔案, 預設內含json、srt、tsv、txt、vtt五種檔案格式  
 ## PC_FineTuning/  
 為各個模型訓練用的程式, 僅透過讀取網路上dataset訓練  
 ## wav_folder/  
