@@ -1,4 +1,4 @@
-## Whisper專案詳細使用方法  
+## Whisper原專案詳細使用方法  
 https://github.com/g0983230881/whisper/tree/main/whisper-main  
  
 ## output/  
